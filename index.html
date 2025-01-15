@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resizable Shapes Drawer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f4f8;
+            color: #333;
+        }
+
+        header {
+            text-align: center;
+            background-color: #6a11cb;
+            color: white;
+            padding: 15px;
+        }
+
+        main {
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            margin-right: 15px;
+        }
+
+        .control-group label {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        canvas {
+            border: 2px solid #6a11cb;
+            border-radius: 8px;
+            display: block;
+            margin: 0 auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Resizable Shape Drawer</h1>
+    </header>
+    <main>
+        <div class="controls-container">
+            <div class="control-group">
+                <label for="shape">Shape:</label>
+                <select id="shape">
+                    <option value="rectangle">Rectangle</option>
+                    <option value="circle">Circle</option>
+                    <option value="triangle">Triangle</option>
+                    <option value="ellipse">Ellipse</option>
+                    <option value="pentagon">Pentagon</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="color">Color:</label>
+                <input type="color" id="color" value="#3388ff">
+            </div>
+        </div>
+        <canvas id="canvas" width="800" height="500"></canvas>
+    </main>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const handleSize = 10;
+        let currentShape = { type: 'rectangle', x: 100, y: 100, width: 150, height: 100 };
+        let dragging = false;
+        let activeHandle = null;
+        let shapeColor = document.getElementById('color').value;
+
+        function drawShape() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = shapeColor;
+            ctx.strokeStyle = '#000';
+            const { x, y, width, height } = currentShape;
+
+            if (currentShape.type === 'rectangle') {
+                ctx.fillRect(x, y, width, height);
+                ctx.strokeRect(x, y, width, height);
+            } else if (currentShape.type === 'circle') {
+                const radius = width / 2;
+                ctx.beginPath();
+                ctx.arc(x + radius, y + radius, radius, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.stroke();
+            } else if (currentShape.type === 'triangle') {
+                ctx.beginPath();
+                ctx.moveTo(x, y + height);
+                ctx.lineTo(x + width / 2, y);
+                ctx.lineTo(x + width, y + height);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            } else if (currentShape.type === 'ellipse') {
+                ctx.beginPath();
+                ctx.ellipse(x + width / 2, y + height / 2, width / 2, height / 2, 0, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.stroke();
+            } else if (currentShape.type === 'pentagon') {
+                drawPentagon(x, y, width, height);
+            }
+
+            drawHandles(x, y, width, height);
+        }
+
+        function drawHandles(x, y, width, height) {
+            const handlePositions = [
+                { x: x, y: y }, // top-left
+                { x: x + width, y: y }, // top-right
+                { x: x, y: y + height }, // bottom-left
+                { x: x + width, y: y + height }, // bottom-right
+            ];
+
+            ctx.fillStyle = 'red';
+            handlePositions.forEach(({ x, y }) => {
+                ctx.fillRect(x - handleSize / 2, y - handleSize / 2, handleSize, handleSize);
+            });
+        }
+
+        function drawPentagon(x, y, width, height) {
+            const cx = x + width / 2;
+            const cy = y + height / 2;
+            const radius = Math.min(width, height) / 2;
+            const sides = 5;
+
+            ctx.beginPath();
+            for (let i = 0; i < sides; i++) {
+                const angle = (2 * Math.PI * i) / sides - Math.PI / 2;
+                const px = cx + radius * Math.cos(angle);
+                const py = cy + radius * Math.sin(angle);
+                ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        function getMousePosition(event) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top,
+            };
+        }
+
+        function isInsideHandle(mousePos, handlePos) {
+            return (
+                mousePos.x >= handlePos.x - handleSize / 2 &&
+                mousePos.x <= handlePos.x + handleSize / 2 &&
+                mousePos.y >= handlePos.y - handleSize / 2 &&
+                mousePos.y <= handlePos.y + handleSize / 2
+            );
+        }
+
+        function getHandleUnderMouse(mousePos) {
+            const { x, y, width, height } = currentShape;
+            const handles = [
+                { x: x, y: y, name: 'top-left' },
+                { x: x + width, y: y, name: 'top-right' },
+                { x: x, y: y + height, name: 'bottom-left' },
+                { x: x + width, y: y + height, name: 'bottom-right' },
+            ];
+
+            return handles.find(handle => isInsideHandle(mousePos, handle));
+        }
+
+        canvas.addEventListener('mousedown', (event) => {
+            const mousePos = getMousePosition(event);
+            const handle = getHandleUnderMouse(mousePos);
+
+            if (handle) {
+                activeHandle = handle.name;
+                dragging = true;
+            }
+        });
+
+        canvas.addEventListener('mousemove', (event) => {
+            if (!dragging || !activeHandle) return;
+
+            const mousePos = getMousePosition(event);
+            const { x, y, width, height } = currentShape;
+
+            if (activeHandle === 'top-left') {
+                currentShape.width = width + (x - mousePos.x);
+                currentShape.height = height + (y - mousePos.y);
+                currentShape.x = mousePos.x;
+                currentShape.y = mousePos.y;
+            } else if (activeHandle === 'top-right') {
+                currentShape.width = mousePos.x - x;
+                currentShape.height = height + (y - mousePos.y);
+                currentShape.y = mousePos.y;
+            } else if (activeHandle === 'bottom-left') {
+                currentShape.width = width + (x - mousePos.x);
+                currentShape.height = mousePos.y - y;
+                currentShape.x = mousePos.x;
+            } else if (activeHandle === 'bottom-right') {
+                currentShape.width = mousePos.x - x;
+                currentShape.height = mousePos.y - y;
+            }
+
+            currentShape.width = Math.max(10, currentShape.width);
+            currentShape.height = Math.max(10, currentShape.height);
+
+            drawShape();
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            dragging = false;
+            activeHandle = null;
+        });
+
+        document.getElementById('shape').addEventListener('change', (e) => {
+            currentShape.type = e.target.value;
+            drawShape();
+        });
+
+        document.getElementById('color').addEventListener('input', (e) => {
+            shapeColor = e.target.value;
+            drawShape();
+        });
+
+        drawShape();
+    </script>
+</body>
+</html>
+
