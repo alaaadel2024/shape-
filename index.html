@@ -60,7 +60,7 @@
 </head>
 <body>
     <header>
-        <h1>Resizable Shape Drawer</h1>
+        <h1>Resizable Shape Drawer with Wavy Effect</h1>
     </header>
     <main>
         <div class="controls-container">
@@ -78,6 +78,10 @@
                 <label for="color">Color:</label>
                 <input type="color" id="color" value="#3388ff">
             </div>
+            <div class="control-group">
+                <label for="wavy">Wavy Effect:</label>
+                <input type="checkbox" id="wavy">
+            </div>
         </div>
         <canvas id="canvas" width="800" height="500"></canvas>
     </main>
@@ -85,18 +89,22 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const handleSize = 10;
-        let currentShape = { type: 'rectangle', x: 100, y: 100, width: 150, height: 100 };
+        let currentShape = { type: 'rectangle', x: 100, y: 100, width: 150, height: 100, isWavy: false };
         let dragging = false;
+        let resizing = false;
         let activeHandle = null;
+        let offset = { x: 0, y: 0 };
         let shapeColor = document.getElementById('color').value;
 
         function drawShape() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = shapeColor;
             ctx.strokeStyle = '#000';
-            const { x, y, width, height } = currentShape;
+            const { x, y, width, height, isWavy } = currentShape;
 
-            if (currentShape.type === 'rectangle') {
+            if (isWavy) {
+                drawWavyShape(x, y, width, height);
+            } else if (currentShape.type === 'rectangle') {
                 ctx.fillRect(x, y, width, height);
                 ctx.strokeRect(x, y, width, height);
             } else if (currentShape.type === 'circle') {
@@ -139,19 +147,20 @@
             });
         }
 
-        function drawPentagon(x, y, width, height) {
-            const cx = x + width / 2;
-            const cy = y + height / 2;
-            const radius = Math.min(width, height) / 2;
-            const sides = 5;
-
+        function drawWavyShape(x, y, width, height) {
             ctx.beginPath();
-            for (let i = 0; i < sides; i++) {
-                const angle = (2 * Math.PI * i) / sides - Math.PI / 2;
-                const px = cx + radius * Math.cos(angle);
-                const py = cy + radius * Math.sin(angle);
-                ctx.lineTo(px, py);
+            const amplitude = 10;
+            const frequency = 20;
+            for (let i = 0; i <= width; i++) {
+                const waveY = y + amplitude * Math.sin((i * Math.PI * 2) / frequency);
+                if (i === 0) {
+                    ctx.moveTo(x + i, waveY);
+                } else {
+                    ctx.lineTo(x + i, waveY);
+                }
             }
+            ctx.lineTo(x + width, y + height);
+            ctx.lineTo(x, y + height);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
@@ -192,41 +201,49 @@
 
             if (handle) {
                 activeHandle = handle.name;
+                resizing = true;
+            } else if (isInsideShape(mousePos)) {
                 dragging = true;
+                offset.x = mousePos.x - currentShape.x;
+                offset.y = mousePos.y - currentShape.y;
             }
         });
 
         canvas.addEventListener('mousemove', (event) => {
-            if (!dragging || !activeHandle) return;
-
             const mousePos = getMousePosition(event);
-            const { x, y, width, height } = currentShape;
+            if (resizing && activeHandle) {
+                const { x, y, width, height } = currentShape;
 
-            if (activeHandle === 'top-left') {
-                currentShape.width = width + (x - mousePos.x);
-                currentShape.height = height + (y - mousePos.y);
-                currentShape.x = mousePos.x;
-                currentShape.y = mousePos.y;
-            } else if (activeHandle === 'top-right') {
-                currentShape.width = mousePos.x - x;
-                currentShape.height = height + (y - mousePos.y);
-                currentShape.y = mousePos.y;
-            } else if (activeHandle === 'bottom-left') {
-                currentShape.width = width + (x - mousePos.x);
-                currentShape.height = mousePos.y - y;
-                currentShape.x = mousePos.x;
-            } else if (activeHandle === 'bottom-right') {
-                currentShape.width = mousePos.x - x;
-                currentShape.height = mousePos.y - y;
+                if (activeHandle === 'top-left') {
+                    currentShape.width = width + (x - mousePos.x);
+                    currentShape.height = height + (y - mousePos.y);
+                    currentShape.x = mousePos.x;
+                    currentShape.y = mousePos.y;
+                } else if (activeHandle === 'top-right') {
+                    currentShape.width = mousePos.x - x;
+                    currentShape.height = height + (y - mousePos.y);
+                    currentShape.y = mousePos.y;
+                } else if (activeHandle === 'bottom-left') {
+                    currentShape.width = width + (x - mousePos.x);
+                    currentShape.height = mousePos.y - y;
+                    currentShape.x = mousePos.x;
+                } else if (activeHandle === 'bottom-right') {
+                    currentShape.width = mousePos.x - x;
+                    currentShape.height = mousePos.y - y;
+                }
+
+                currentShape.width = Math.max(10, currentShape.width);
+                currentShape.height = Math.max(10, currentShape.height);
+                drawShape();
+            } else if (dragging) {
+                currentShape.x = mousePos.x - offset.x;
+                currentShape.y = mousePos.y - offset.y;
+                drawShape();
             }
-
-            currentShape.width = Math.max(10, currentShape.width);
-            currentShape.height = Math.max(10, currentShape.height);
-
-            drawShape();
         });
 
         canvas.addEventListener('mouseup', () => {
+            resizing = false;
             dragging = false;
             activeHandle = null;
         });
@@ -241,8 +258,12 @@
             drawShape();
         });
 
+        document.getElementById('wavy').addEventListener('change', (e) => {
+            currentShape.isWavy = e.target.checked;
+            drawShape();
+        });
+
         drawShape();
     </script>
 </body>
 </html>
-
